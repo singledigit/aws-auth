@@ -1,0 +1,10 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "Development"
+  },
+  {
+    "ParameterKey": "DDBUserTable",
+    "ParameterValue": "UsersDevelopment"
+  }
+]

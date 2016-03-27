@@ -1,0 +1,227 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description":"Builds a serverless authentication structure",
+  "Parameters":{
+    "Environment":{
+      "Description":"Environment for this stack",
+      "Type":"String",
+      "Default":"Development",
+      "AllowedValues" : [
+        "Development",
+        "Beta",
+        "Staging",
+        "Production"
+      ]
+    },
+    "DDBUserTable":{
+      "Description":"Enter the name of the users Table",
+      "Type":"String",
+      "Default":"UsersDevelopment"
+    }
+  },
+  "Metadata": {
+    "AWS::CloudFormation::Designer": {
+      "7080009a-6723-470f-b2ba-2a69f0badbc1": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 60,
+          "y": 90
+        },
+        "z": 1,
+        "embeds": [],
+        "dependson": [
+          "6898b69a-7b08-4611-aa92-c0709b689d30"
+        ]
+      },
+      "6898b69a-7b08-4611-aa92-c0709b689d30": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 180,
+          "y": 90
+        },
+        "z": 1,
+        "embeds": []
+      },
+      "37d71e16-67d2-44c4-83d4-e09090066524": {
+        "source": {
+          "id": "7080009a-6723-470f-b2ba-2a69f0badbc1"
+        },
+        "target": {
+          "id": "6898b69a-7b08-4611-aa92-c0709b689d30"
+        },
+        "z": 2
+      }
+    }
+  },
+  "Resources": {
+    "DDBUsersTable":{
+      "Type":"AWS::DynamoDB::Table",
+      "Properties":{
+        "AttributeDefinitions" : [
+          {
+            "AttributeName" : "Email",
+            "AttributeType" : "S"
+          }
+        ],
+        "KeySchema" : [
+          {
+            "AttributeName" : "Email",
+            "KeyType" : "HASH"
+          }
+        ],
+        "ProvisionedThroughput" : {
+          "ReadCapacityUnits" : "5",
+          "WriteCapacityUnits" : "5"
+        },
+        "TableName" : {"Ref" :"DDBUserTable"}
+      }
+    },
+    "RoleCreateUser": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CreateUser",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:PutItem"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    { "Fn::Join" : [ "", ["arn:aws:dynamodb:us-east-1:778539567203:table/", { "Ref" : "DDBUserTable" }]]}
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ses:SendEmail",
+                    "ses:SendRawEmail"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "",
+                  "Resource": "*",
+                  "Action": [
+                    "logs:*"
+                  ],
+                  "Effect": "Allow"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LambdaCreateUser": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": "https://s3.amazonaws.com/cf-lambda-zips/CreateUser.zip"
+        },
+        "Description": "Lambda for creating users",
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Role": {"Fn::GetAtt" : ["RoleCreateUser", "Arn"] },
+        "Runtime": "nodejs",
+        "Timeout": 3
+      },
+      "DependsOn": [
+        "RoleCreateUser"
+      ]
+    },
+    "RoleVerifyUser": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "VerifyUser",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    { "Fn::Join" : [ "", ["arn:aws:dynamodb:us-east-1:778539567203:table/", { "Ref" : "DDBUserTable" }]]}
+                  ]
+                },
+                {
+                  "Sid": "",
+                  "Resource": "*",
+                  "Action": [
+                    "logs:*"
+                  ],
+                  "Effect": "Allow"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LambdaVerifyUser": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": "https://s3.amazonaws.com/cf-lambda-zips/VerifyUser.zip"
+        },
+        "Description": "Lambda for verifying users",
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Role": {"Fn::GetAtt" : ["RoleVerifyUserUser", "Arn"] },
+        "Runtime": "nodejs",
+        "Timeout": 3
+      },
+      "DependsOn": [
+        "RoleVerifyUser"
+      ]
+    }
+  }
+}

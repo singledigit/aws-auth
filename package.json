@@ -1,0 +1,16 @@
+{
+  "name": "aws_auth",
+  "version": "1.0.0",
+  "description": "Authentication plugin that uses cognito and is controlled with AWS build tools",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-shell": "^0.5.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+  },
+  "author": "Eric Johnson",
+  "license": "ISC"
+}
