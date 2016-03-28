@@ -7,5 +7,6 @@ var gulp = require('gulp'),
     template = require('./cloudform.json');
 
 gulp.task('update-stack', shell.task([
-  'aws cloudformation update-stack --stack-name Auth --template-body file://./cloudform.json --parameters file://./cloudform-development.json --capabilities CAPABILITY_IAM --profile singledigit'
+  'aws cloudformation update-stack --stack-name Auth --template-body file://./cloudform.json --parameters file://./cloudform-development.json --capabilities CAPABILITY_IAM --profile singledigit',
+  'aws cloudformation describe-stack-resources --stack-name Auth --profile singledigit > resource-config.json'
 ]));
