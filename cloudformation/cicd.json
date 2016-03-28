@@ -7,10 +7,10 @@
   "Parameters" : {
 
     "InstanceType" : {
-      "Description" : "WebServer EC2 instance type",
+      "Description" : "CICD EC2 instance type",
       "Type" : "String",
-      "Default" : "t2.micro",
-      "AllowedValues" : [ "t2.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "Default" : "m1.small",
+      "AllowedValues" : [ "t2.nano","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.xlarge","m3.2xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
       "ConstraintDescription" : "must be a valid EC2 instance type."
     },
 
@@ -36,7 +36,7 @@
 
   "Mappings" : {
     "RegionMap" : {
-      "us-east-1"      : { "AMI" : "ami-3a535f50" }
+      "us-east-1"      : { "AMI" : "ami-7f418316" }
     }
   },
 
@@ -303,7 +303,7 @@
     "CICD": {
       "Type": "AWS::EC2::Instance",
       "Metadata": {
-        "Comment": "Install a simple PHP application"
+        "Comment": "Install a jenkins CICD server"
       },
       "Properties": {
         "ImageId": {

@@ -1,7 +1,7 @@
 [
   {
     "ParameterKey": "InstanceType",
-    "ParameterValue": "t2.micro"
+    "ParameterValue": "m1.small"
   },
   {
     "ParameterKey": "KeyName",
