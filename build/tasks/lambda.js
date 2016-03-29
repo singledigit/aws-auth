@@ -3,41 +3,25 @@
  */
 
 var gulp = require('gulp'),
-  fs = require('fs'),
-  path = require('path'),
+  app = require('../../configs/app.json'),
   babel = require("gulp-babel"),
   plumber = require('gulp-plumber'),
   notify = require('gulp-notify'),
   args = require('get-gulp-args')(),
-  mods = require('../../package.json'),
   shell = require('gulp-shell'),
   rename = require('gulp-rename'),
   vinyl = require('vinyl-paths'),
   zip = require('gulp-zip'),
   merge = require('merge-stream'),
+  helpers = require('../helpers'),
   del = require('del');
 
 var lambda = (args.lambda || '').toLowerCase(),
-    lambdaPath = 'dist/lambdas/' + lambda + '/',
     env = (args.env || 'development').toLocaleLowerCase(),
-    zipFile = lambda + '.zip',
-    deploy = args.deploy === "true";
+    deploy = false,
+    conf = require('../../configs/resource-' + env + '.json');
 
-function getFolders(dir) {
-  return fs.readdirSync(dir)
-    .filter(function (file) {
-      return fs.statSync(path.join(dir, file)).isDirectory();
-    });
-}
 
-function getModules(){
-  var keys = Object.keys(mods.dependencies),
-    explodedKeys = [];
-  for (var i = 0; i < keys.length; i++) {
-    explodedKeys.push('node_modules/' + keys[i] + "/**/*");
-  }
-  return explodedKeys;
-}
 
 gulp.task('clean', function () {
   return gulp.src('dist/')
@@ -52,8 +36,8 @@ gulp.task("compile", ['clean'], function () {
 });
 
 gulp.task('collect', ['compile'], function(){
-  var folders = getFolders('dist/lambdas');
-  var keys = getModules();
+  var folders = helpers.getFolders('dist/lambdas');
+  var keys = helpers.getModules();
 
   var resource = folders.map(function(folder){
     return gulp.src('configs/resource-' + env + '.json')
@@ -75,20 +59,29 @@ gulp.task('collect', ['compile'], function(){
 });
 
 gulp.task('package', ['collect'], function(){
-  var folders = getFolders('dist/lambdas');
+  var folders = helpers.getFolders('dist/lambdas');
 
   var pack = folders.map(function(folder){
     return gulp.src('dist/lambdas/' + folder + '/**/*.*')
       .pipe(zip(folder + '.zip'))
-      .pipe(gulp.dest('dist/lambdas/' + folder));
+      .pipe(gulp.dest('dist/lambdas/' + folder))
   });
 
   return merge(pack);
 });
 
-gulp.task('aws', function () {
-  return shell([
-    "aws lambda update-function-code --function-name " + lambda + "" + env + " --zip-file fileb://" + lambdaPath + "" + zipFile + " --profile --profile singledigit"
-  ])
+gulp.task('deploy', ['package'], function () {
+  var folders = helpers.getFolders('dist/lambdas'),
+    l = helpers.getProperty(conf, 'Lambda' + lambda, 'PhysicalResourceId');
+
+  var aws = folders.map(function(folder){
+    var lambdaName = helpers.getProperty(conf, 'Lambda' + folder, 'PhysicalResourceId');
+    return gulp.src('dist/lambdas/' + folder + '/*.zip')
+      .pipe(shell([
+        "aws lambda update-function-code --function-name " + lambdaName + " --zip-file fileb://dist/lambdas/" + folder + "/" + folder + ".zip --profile " + app.profile
+      ]))
+  });
+
+  return merge(aws);
 });
 
