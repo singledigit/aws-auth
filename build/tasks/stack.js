@@ -5,10 +5,9 @@
 var gulp = require('gulp'),
   shell = require('gulp-shell'),
   args = require('get-gulp-args')();
-
 var stack = (args.stack || '').toLowerCase(),
-    env = (args.env || 'development').toLowerCase(),
-    action = '';
+  env = (args.env || 'development').toLowerCase(),
+  action = '';
 
 action += '--stack-name ' + stack + '-' + env + ' --template-body file://./cloudformation/' + stack + '.json ';
 action += '--parameters file://./cloudformation/' + stack + '-' + env + '.json ';
@@ -26,6 +25,8 @@ gulp.task('delete-stack', shell.task([
   'aws cloudformation delete-stack ' + stack + "-" + env
 ]));
 
-gulp.task('describe-stack-resources', shell.task([
-  'aws cloudformation describe-stack-resources --stack-name  auth-' + env + ' --profile singledigit > configs/resource-' + env + '.json'
-]));
+gulp.task('describe-stack-resources', function () {
+  return shell([
+    'aws cloudformation describe-stack-resources --stack-name  auth-' + env + ' --profile singledigit > configs/resource-' + env + '.json'
+  ])
+});

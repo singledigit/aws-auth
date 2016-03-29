@@ -13,11 +13,15 @@ var gulp = require('gulp'),
   shell = require('gulp-shell'),
   rename = require('gulp-rename'),
   vinyl = require('vinyl-paths'),
+  zip = require('gulp-zip'),
+  merge = require('merge-stream'),
   del = require('del');
 
 var lambda = (args.lambda || '').toLowerCase(),
     lambdaPath = 'dist/lambdas/' + lambda + '/',
-    env = (args.env || 'development').toLocaleLowerCase();
+    env = (args.env || 'development').toLocaleLowerCase(),
+    zipFile = lambda + '.zip',
+    deploy = args.deploy === "true";
 
 function getFolders(dir) {
   return fs.readdirSync(dir)
@@ -26,50 +30,65 @@ function getFolders(dir) {
     });
 }
 
+function getModules(){
+  var keys = Object.keys(mods.dependencies),
+    explodedKeys = [];
+  for (var i = 0; i < keys.length; i++) {
+    explodedKeys.push('node_modules/' + keys[i] + "/**/*");
+  }
+  return explodedKeys;
+}
+
 gulp.task('clean', function () {
   return gulp.src('dist/')
     .pipe(vinyl(del));
 });
 
-gulp.task("compile-code", function () {
+gulp.task("compile", ['clean'], function () {
   return gulp.src("src/**/*.js")
     .pipe(plumber({errorHandler: notify.onError('Error: <%= error.message %>')}))
     .pipe(babel())
     .pipe(gulp.dest("dist"));
 });
 
-gulp.task("copy-npm-modules", function () {
-  var keys = Object.keys(mods.dependencies),
-    explodedKeys = [];
-  for (var i = 0; i < keys.length; i++) {
-    explodedKeys.push('node_modules/' + keys[i] + "/**/*");
-  }
-  return gulp.src(explodedKeys, {base: "."})
-    .pipe(gulp.dest(lambdaPath));
+gulp.task('collect', ['compile'], function(){
+  var folders = getFolders('dist/lambdas');
+  var keys = getModules();
+
+  var resource = folders.map(function(folder){
+    return gulp.src('configs/resource-' + env + '.json')
+      .pipe(rename('resources.json'))
+      .pipe(gulp.dest('dist/lambdas/' + folder + '/'))
+  });
+
+  var library = folders.map(function(folder){
+    return gulp.src('dist/lib/*')
+      .pipe(gulp.dest('dist/lambdas/' + folder + '/lib'))
+  });
+
+  var modules = folders.map(function(folder){
+    return gulp.src(keys, {base: "."})
+      .pipe(gulp.dest('dist/lambdas/' + folder + '/'))
+  });
+
+  return merge(resource, library, modules);
 });
 
-gulp.task('copy-library', function () {
-  gulp.src('dist/lib/*')
-    .pipe(gulp.dest(lambdaPath + 'lib'));
+gulp.task('package', ['collect'], function(){
+  var folders = getFolders('dist/lambdas');
+
+  var pack = folders.map(function(folder){
+    return gulp.src('dist/lambdas/' + folder + '/**/*.*')
+      .pipe(zip(folder + '.zip'))
+      .pipe(gulp.dest('dist/lambdas/' + folder));
+  });
+
+  return merge(pack);
 });
 
-gulp.task("copy-resource-config", function () {
-  return gulp.src('./configs/resource-' + env + '.json')
-    .pipe(rename('resources.json'))
-    .pipe(gulp.dest(lambdaPath));
+gulp.task('aws', function () {
+  return shell([
+    "aws lambda update-function-code --function-name " + lambda + "" + env + " --zip-file fileb://" + lambdaPath + "" + zipFile + " --profile --profile singledigit"
+  ])
 });
 
-gulp.task("build-all", function () {
-  var runSequence = require('run-sequence').use(gulp),
-    folders = getFolders('src/lambdas');
-
-  if(lambda){
-    lambdaPath = 'dist/lambdas/' + lambda + '/';
-    return runSequence('describe-stack-resources', 'clean', 'compile-code', 'copy-npm-modules', 'copy-library', 'copy-resource-config');
-  } else {
-    for (var i = 0; i < folders.length; i++) {
-      lambdaPath = 'dist/lambdas/' + folders[i] + '/';
-      runSequence('describe-stack-resources', 'clean', 'compile-code', 'copy-npm-modules', 'copy-library', 'copy-resource-config');
-    }
-  }
-});
